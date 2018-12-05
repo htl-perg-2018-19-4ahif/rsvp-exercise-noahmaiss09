@@ -3,41 +3,43 @@ import * as loki from 'lokijs';
 import * as express from 'express';
 import * as basic from 'express-basic-auth';
 
-var app = express();
+const app = express();
 app.use(express.json());
 
+import {Request, Response} from 'express';
+import { getUnpackedSettings } from 'http2';
+
+var db = new loki('loki.json');
+var guests = db.addCollection('guests');
 const adminFilter = basic({ users: { admin: 'P@ssw0rd!' }});
 
-const db = new loki(__dirname + '/db.dat', {autosave: true, autoload: true});
-let guests = db.getCollection('guests');
-if (!guests) {
-  guests = db.addCollection('guests');
+// Add routes
+app.get('/party', getAll);
+app.post('/register', post);
+app.get('/guests', getGuests, adminFilter);
+
+export function getGuests(req: Request, res: Response): void {
+  res.send(guests.find);
 }
 
-app.get('/guests', adminFilter, (req, res) => {
-  res.send(guests.find());
-});
-
-app.get('/party', (req, res, next) => {
-  res.send({
-    title: 'Happy new year!',
-    location: 'At my home',
-    date: new Date(2017, 0, 1)
-  });
-});
-
-app.post('/register', (req, res, next) => {
+export function post(req: Request, res: Response): void {
   if (!req.body.firstName || !req.body.lastName) {
-    res.status(BAD_REQUEST).send('Missing mandatory member(s)');
+    res.status(BAD_REQUEST).send('No input for firstname or lastname');
   } else {
-    const count = guests.count();
-    if (count < 10) {
-      const newDoc = guests.insert({firstName: req.body.firstName, lastName: req.body.lastName});
-      res.status(CREATED).send(newDoc);
-    } else {
-      res.status(UNAUTHORIZED).send('Sorry, max. number of guests already reached');
+    let count = guests.count();
+    if (count > 10){
+      const guest = guests.insert({firstName: req.body.firstName, lastName: req.body.lastName});
+      res.status(CREATED).send(guest);
     }
   }
-});
+}
 
-app.listen(8080, () => console.log('API is listening'));
+export function getAll(req: Request, res: Response): void {
+  res.send({
+    title: "Halligalli Drecksauparty",
+    location: "Sprengdorf 69",
+    date: new Date(2018, 0, 1)
+  });
+}
+
+app.listen(8080, () => console.log('API is listening on port 8080'))
